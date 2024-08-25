@@ -80,6 +80,7 @@ func main() {
 	relay.RejectFilter = append(relay.RejectFilter, func(ctx context.Context, filter nostr.Filter) (bool, string) {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
+		fmt.Println("authenticated user: ", authenticatedUser)
 		for _, fren := range frens {
 			if authenticatedUser == fren.PubKey {
 				return false, ""
@@ -92,6 +93,7 @@ func main() {
 	relay.RejectEvent = append(relay.RejectEvent, func(ctx context.Context, event *nostr.Event) (bool, string) {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
+		fmt.Println("authenticated user: ", authenticatedUser)
 		for _, fren := range frens {
 			if authenticatedUser == fren.PubKey {
 				return false, ""
