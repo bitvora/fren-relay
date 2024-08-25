@@ -13,6 +13,7 @@ cd fren-relay
 
 ```bash
 cp .env.example .env
+cp frens.json.example frens.json
 ```
 
 ## Launch database with docker
