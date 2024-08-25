@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -80,7 +79,6 @@ func main() {
 	relay.RejectFilter = append(relay.RejectFilter, func(ctx context.Context, filter nostr.Filter) (bool, string) {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
-		fmt.Println("authenticated user: ", authenticatedUser)
 		for _, fren := range frens {
 			if authenticatedUser == fren.PubKey {
 				return false, ""
@@ -93,7 +91,6 @@ func main() {
 	relay.RejectEvent = append(relay.RejectEvent, func(ctx context.Context, event *nostr.Event) (bool, string) {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
-		fmt.Println("authenticated user: ", authenticatedUser)
 		for _, fren := range frens {
 			if authenticatedUser == fren.PubKey {
 				return false, ""
@@ -107,31 +104,6 @@ func main() {
 
 	fmt.Println("running on :3334")
 	http.ListenAndServe(":3334", relay)
-}
-
-func fetchNostrData(teamDomain string) {
-	response, err := http.Get("https://" + teamDomain + "/.well-known/nostr.json")
-	if err != nil {
-		log.Printf("Error getting well known file: %v", err)
-		return
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Printf("Error reading response body: %v", err)
-		return
-	}
-
-	var newData NostrData
-	err = json.Unmarshal(body, &newData)
-	if err != nil {
-		log.Printf("Error unmarshalling JSON: %v", err)
-		return
-	}
-
-	data = newData
-	log.Println("Updated NostrData from .well-known file")
 }
 
 func LoadConfig() Config {
