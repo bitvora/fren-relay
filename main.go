@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/fiatjaf/eventstore/postgresql"
 	"github.com/fiatjaf/khatru"
@@ -16,8 +16,9 @@ import (
 
 type Config struct {
 	RelayName        string
-	RelayPubkey      string
+	OwnerPubkey      string
 	RelayDescription string
+	FetchRelay       string
 	PostgresUser     string
 	PostgresPassword string
 	PostgresDB       string
@@ -47,7 +48,7 @@ func main() {
 	config := LoadConfig()
 
 	relay.Info.Name = config.RelayName
-	relay.Info.PubKey = config.RelayPubkey
+	relay.Info.PubKey = config.OwnerPubkey
 	relay.Info.Description = config.RelayDescription
 
 	db := postgresql.PostgresBackend{
@@ -57,20 +58,8 @@ func main() {
 		panic(err)
 	}
 
-	frenFile, err := os.ReadFile("frens.json")
-	if err != nil {
-		log.Fatalf("Failed to read JSON file: %s", err)
-	}
-
-	// Unmarshal the JSON file into the struct
-	var frenList FrenList
-	err = json.Unmarshal(frenFile, &frenList)
-	if err != nil {
-		log.Fatalf("Failed to parse JSON: %s", err)
-	}
-
-	// Access the map of usernames to public keys
-	frens := frenList.Frens
+	frens := getFollowedPubkeys()
+	fmt.Println("allowed frens: ", len(frens))
 
 	relay.OnConnect = append(relay.OnConnect, func(ctx context.Context) {
 		khatru.RequestAuth(ctx)
@@ -80,7 +69,7 @@ func main() {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
 		for _, fren := range frens {
-			if authenticatedUser == fren.PubKey {
+			if authenticatedUser == fren {
 				return false, ""
 			}
 		}
@@ -92,7 +81,7 @@ func main() {
 
 		authenticatedUser := khatru.GetAuthed(ctx)
 		for _, fren := range frens {
-			if authenticatedUser == fren.PubKey {
+			if authenticatedUser == fren {
 				return false, ""
 			}
 		}
@@ -106,6 +95,42 @@ func main() {
 	http.ListenAndServe(":3334", relay)
 }
 
+func getFollowedPubkeys() []string {
+	ctx := context.Background()
+	config := LoadConfig()
+
+	relay, err := nostr.RelayConnect(ctx, config.FetchRelay)
+	if err != nil {
+		log.Fatalf("Failed to connect to relay: %s", err)
+	}
+
+	var filters nostr.Filters
+	filters = []nostr.Filter{{
+		Kinds:   []int{nostr.KindContactList},
+		Authors: []string{config.OwnerPubkey},
+		Limit:   1,
+	}}
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	sub, err := relay.Subscribe(ctx, filters)
+	if err != nil {
+		panic(err)
+	}
+
+	var pubkeys []string
+
+	for ev := range sub.Events {
+		follows := ev.Tags.GetAll([]string{"p"})
+		for _, follow := range follows {
+			pubkeys = append(pubkeys, follow[1])
+		}
+	}
+
+	return pubkeys
+}
+
 func LoadConfig() Config {
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -114,8 +139,9 @@ func LoadConfig() Config {
 
 	config := Config{
 		RelayName:        getEnv("RELAY_NAME"),
-		RelayPubkey:      getEnv("RELAY_PUBKEY"),
+		OwnerPubkey:      getEnv("OWNER_PUBKEY"),
 		RelayDescription: getEnv("RELAY_DESCRIPTION"),
+		FetchRelay:       getEnv("FETCH_RELAY"),
 		PostgresUser:     getEnv("POSTGRES_USER"),
 		PostgresPassword: getEnv("POSTGRES_PASSWORD"),
 		PostgresDB:       getEnv("POSTGRES_DB"),

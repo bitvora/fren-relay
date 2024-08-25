@@ -1,6 +1,6 @@
 ## Fren-Relay
 
-A Relay that only your frens can post to using NIP42 Authentication.
+A Relay that only your frens (people you follow) can post to using NIP42 Authentication.
 
 ## Clone the repository
 
@@ -13,7 +13,6 @@ cd fren-relay
 
 ```bash
 cp .env.example .env
-cp frens.json.example frens.json
 ```
 
 ## Launch database with docker
