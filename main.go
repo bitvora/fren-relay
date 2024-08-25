@@ -58,7 +58,7 @@ func main() {
 		panic(err)
 	}
 
-	frenFile, err := os.ReadFile("users.json")
+	frenFile, err := os.ReadFile("frens.json")
 	if err != nil {
 		log.Fatalf("Failed to read JSON file: %s", err)
 	}
